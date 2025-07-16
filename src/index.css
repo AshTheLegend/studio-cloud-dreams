@@ -8,35 +8,57 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
+    /* Base colors */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
+    /* Studio-quality 3D app colors */
+    --primary: 280 100% 70%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 290 100% 85%;
+
+    --secondary: 320 60% 75%;
+    --secondary-foreground: 280 30% 15%;
+
+    --accent: 200 100% 80%;
+    --accent-foreground: 200 30% 15%;
+
+    /* Glassmorphism colors */
+    --glass: 0 0% 100%;
+    --glass-border: 0 0% 100%;
+    --glass-shadow: 280 50% 50%;
+
+    /* Studio gradients */
+    --gradient-dreamy: linear-gradient(135deg, hsl(320 60% 95%), hsl(280 80% 93%), hsl(240 70% 95%));
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-glass: linear-gradient(135deg, 
+      hsla(0 0% 100% / 0.25), 
+      hsla(0 0% 100% / 0.1)
+    );
+
+    /* Shadows for depth */
+    --shadow-glass: 0 8px 32px hsla(280 50% 50% / 0.1);
+    --shadow-float: 0 10px 40px hsla(280 50% 50% / 0.15);
+    --shadow-glow: 0 0 30px hsla(var(--primary) / 0.3);
+
+    /* Traditional UI colors */
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --ring: hsl(var(--primary));
 
-    --radius: 0.5rem;
+    --radius: 1rem;
 
     --sidebar-background: 0 0% 98%;
 
@@ -100,6 +122,93 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground overflow-hidden;
+    background: var(--gradient-dreamy);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  /* Glassmorphism utilities */
+  .glass-panel {
+    @apply backdrop-blur-xl bg-white/20 border border-white/30 rounded-2xl;
+    box-shadow: var(--shadow-glass);
+  }
+
+  .glass-button {
+    @apply backdrop-blur-md bg-white/15 hover:bg-white/25 border border-white/20 rounded-xl;
+    box-shadow: var(--shadow-glass);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .glass-button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-float);
+  }
+
+  .floating-toolbar {
+    @apply fixed bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-3 px-6 py-3;
+    @apply glass-panel;
+  }
+
+  .floating-panel {
+    @apply glass-panel p-4 max-w-sm;
+  }
+
+  /* Smooth animations */
+  .smooth-transition {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .glow-effect {
+    filter: drop-shadow(0 0 20px hsla(var(--primary) / 0.4));
+  }
+
+  /* Custom slider styles */
+  .slider {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .slider::-webkit-slider-track {
+    background: rgba(255, 255, 255, 0.2);
+    height: 4px;
+    border-radius: 2px;
+  }
+
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    box-shadow: 0 2px 8px hsla(var(--primary) / 0.3);
+    cursor: pointer;
+    border: 2px solid white;
+  }
+
+  .slider::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px hsla(var(--primary) / 0.5);
+  }
+
+  .slider::-moz-range-track {
+    background: rgba(255, 255, 255, 0.2);
+    height: 4px;
+    border-radius: 2px;
+    border: none;
+  }
+
+  .slider::-moz-range-thumb {
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    box-shadow: 0 2px 8px hsla(var(--primary) / 0.3);
+    cursor: pointer;
+    border: 2px solid white;
   }
 }
