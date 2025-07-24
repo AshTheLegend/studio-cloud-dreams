@@ -5,6 +5,10 @@ import { FloatingToolbar } from './FloatingToolbar';
 import { SelectionPanel } from './SelectionPanel';
 import { SceneObjects } from './SceneObjects';
 import { LoadingScene } from './LoadingScene';
+import { ModelImporter } from './ModelImporter';
+import { PatternDuplicator } from './PatternDuplicator';
+import { useUndoRedo } from '@/hooks/useUndoRedo';
+import { toast } from '@/hooks/use-toast';
 
 export interface SceneObject {
   id: string;
@@ -17,8 +21,7 @@ export interface SceneObject {
 }
 
 export const ThreePlayground = () => {
-  const [objects, setObjects] = useState<SceneObject[]>([
-    // Demo objects to showcase the environment
+  const initialObjects: SceneObject[] = [
     {
       id: 'demo-1',
       position: [0, 0.5, 0],
@@ -43,12 +46,15 @@ export const ThreePlayground = () => {
       name: 'Decoration',
       color: '#45b7d1'
     }
-  ]);
+  ];
+
+  const { state: objects, setState: setObjectsWithHistory, undo, redo, canUndo, canRedo } = useUndoRedo(initialObjects);
   const [selectedObject, setSelectedObject] = useState<SceneObject | null>(null);
   const [showGrid, setShowGrid] = useState(true);
   const [snapToGrid, setSnapToGrid] = useState(true);
   const [isEventMode, setIsEventMode] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showPatternDuplicator, setShowPatternDuplicator] = useState(false);
+  const cameraRef = useRef<any>(null);
 
   const addObject = (model: any, name: string) => {
     const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b', '#6c5ce7'];
@@ -63,8 +69,10 @@ export const ThreePlayground = () => {
       name,
       color: randomColor
     };
-    setObjects(prev => [...prev, newObject]);
+    const newObjects = [...objects, newObject];
+    setObjectsWithHistory(newObjects);
     setSelectedObject(newObject);
+    toast({ title: "Object Added", description: `${name} has been added to the scene` });
   };
 
   const addDemoObject = () => {
@@ -74,19 +82,22 @@ export const ThreePlayground = () => {
   };
 
   const updateObject = (id: string, updates: Partial<SceneObject>) => {
-    setObjects(prev => prev.map(obj => 
+    const newObjects = objects.map(obj => 
       obj.id === id ? { ...obj, ...updates } : obj
-    ));
+    );
+    setObjectsWithHistory(newObjects);
     if (selectedObject?.id === id) {
       setSelectedObject(prev => prev ? { ...prev, ...updates } : null);
     }
   };
 
   const deleteObject = (id: string) => {
-    setObjects(prev => prev.filter(obj => obj.id !== id));
+    const newObjects = objects.filter(obj => obj.id !== id);
+    setObjectsWithHistory(newObjects);
     if (selectedObject?.id === id) {
       setSelectedObject(null);
     }
+    toast({ title: "Object Deleted", description: "Object has been removed from the scene" });
   };
 
   const duplicateObject = (id: string) => {
@@ -98,39 +109,64 @@ export const ThreePlayground = () => {
       id: crypto.randomUUID(),
       position: [original.position[0] + 2, original.position[1], original.position[2]]
     };
-    setObjects(prev => [...prev, newObject]);
+    const newObjects = [...objects, newObject];
+    setObjectsWithHistory(newObjects);
+    setSelectedObject(newObject);
+    toast({ title: "Object Duplicated", description: `${original.name} has been duplicated` });
+  };
+
+  const createPattern = (rows: number, cols: number, xGap: number, zGap: number) => {
+    if (!selectedObject) return;
+    
+    const newObjects = [...objects];
+    const basePos = selectedObject.position;
+    
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        if (row === 0 && col === 0) continue; // Skip original position
+        
+        const newObject: SceneObject = {
+          ...selectedObject,
+          id: crypto.randomUUID(),
+          position: [
+            basePos[0] + col * xGap,
+            basePos[1],
+            basePos[2] + row * zGap
+          ]
+        };
+        newObjects.push(newObject);
+      }
+    }
+    
+    setObjectsWithHistory(newObjects);
+    setShowPatternDuplicator(false);
+    toast({ title: "Pattern Created", description: `${rows}x${cols} pattern with ${newObjects.length - objects.length} new objects` });
   };
 
   const resetView = () => {
-    // This will be handled by the camera controls
+    if (cameraRef.current) {
+      cameraRef.current.position.set(10, 10, 10);
+      cameraRef.current.lookAt(0, 0, 0);
+    }
+    toast({ title: "View Reset", description: "Camera view has been reset to default" });
   };
 
   const clearScene = () => {
-    setObjects([]);
+    setObjectsWithHistory([]);
     setSelectedObject(null);
+    toast({ title: "Scene Cleared", description: "All objects have been removed from the scene" });
+  };
+
+  const exportScene = () => {
+    // TODO: Implement GLB export
+    toast({ title: "Export", description: "Scene export feature coming soon!" });
   };
 
   return (
     <div className="w-full h-screen relative overflow-hidden">
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".glb,.gltf"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) {
-            // For now, add a demo object since GLTF loading requires more setup
-            addDemoObject();
-            console.log('Loading file:', file.name);
-          }
-        }}
-        className="hidden"
-      />
-
       {/* 3D Canvas */}
       <Canvas shadows>
-        <PerspectiveCamera makeDefault position={[10, 10, 10]} fov={50} />
+        <PerspectiveCamera ref={cameraRef} makeDefault position={[10, 10, 10]} fov={50} />
         
         {/* Lighting setup for studio quality */}
         <ambientLight intensity={0.6} />
@@ -197,25 +233,68 @@ export const ThreePlayground = () => {
       {/* UI Layer - only show if not in event mode */}
       {!isEventMode && (
         <>
-          <FloatingToolbar
-            onImport={addDemoObject}
-            onDuplicate={() => selectedObject && duplicateObject(selectedObject.id)}
-            onDelete={() => selectedObject && deleteObject(selectedObject.id)}
-            onToggleGrid={() => setShowGrid(!showGrid)}
-            onToggleSnap={() => setSnapToGrid(!snapToGrid)}
-            onResetView={resetView}
-            onClearScene={clearScene}
-            showGrid={showGrid}
-            snapToGrid={snapToGrid}
-            hasSelection={!!selectedObject}
-          />
+          {/* Model Importer */}
+          <ModelImporter onImportModel={addObject} />
 
+          {/* Enhanced Floating Toolbar */}
+          <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 flex items-center space-x-3">
+            <FloatingToolbar
+              onImport={addDemoObject}
+              onDuplicate={() => selectedObject && duplicateObject(selectedObject.id)}
+              onDelete={() => selectedObject && deleteObject(selectedObject.id)}
+              onToggleGrid={() => setShowGrid(!showGrid)}
+              onToggleSnap={() => setSnapToGrid(!snapToGrid)}
+              onResetView={resetView}
+              onClearScene={clearScene}
+              showGrid={showGrid}
+              snapToGrid={snapToGrid}
+              hasSelection={!!selectedObject}
+            />
+            
+            {/* Undo/Redo Controls */}
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-2 flex space-x-2">
+              <button
+                onClick={undo}
+                disabled={!canUndo}
+                className="px-3 py-2 text-sm font-medium text-white disabled:opacity-50 hover:bg-white/10 rounded"
+              >
+                Undo
+              </button>
+              <button
+                onClick={redo}
+                disabled={!canRedo}
+                className="px-3 py-2 text-sm font-medium text-white disabled:opacity-50 hover:bg-white/10 rounded"
+              >
+                Redo
+              </button>
+            </div>
+          </div>
+
+          {/* Enhanced Selection Panel */}
           {selectedObject && (
-            <SelectionPanel
-              object={selectedObject}
-              onUpdate={(updates) => updateObject(selectedObject.id, updates)}
-              onDuplicate={() => duplicateObject(selectedObject.id)}
-              onDelete={() => deleteObject(selectedObject.id)}
+            <div className="fixed left-6 bottom-6 space-y-3">
+              <SelectionPanel
+                object={selectedObject}
+                onUpdate={(updates) => updateObject(selectedObject.id, updates)}
+                onDuplicate={() => duplicateObject(selectedObject.id)}
+                onDelete={() => deleteObject(selectedObject.id)}
+              />
+              
+              {/* Pattern Duplication Button */}
+              <button
+                onClick={() => setShowPatternDuplicator(true)}
+                className="w-full bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-3 text-white hover:bg-white/20 transition-all"
+              >
+                Create Pattern
+              </button>
+            </div>
+          )}
+
+          {/* Pattern Duplicator Modal */}
+          {showPatternDuplicator && (
+            <PatternDuplicator
+              onPatternCreate={createPattern}
+              onCancel={() => setShowPatternDuplicator(false)}
             />
           )}
         </>
@@ -228,6 +307,16 @@ export const ThreePlayground = () => {
       >
         {isEventMode ? 'Exit Event Mode' : 'Event Mode'}
       </button>
+
+      {/* Export button */}
+      {!isEventMode && (
+        <button
+          onClick={exportScene}
+          className="fixed top-6 left-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-2 text-sm font-medium text-white hover:bg-white/20 transition-all"
+        >
+          Export Scene
+        </button>
+      )}
     </div>
   );
 };
