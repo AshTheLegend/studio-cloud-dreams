@@ -166,7 +166,7 @@ export const ThreePlayground = () => {
     <div className="w-full h-screen relative overflow-hidden">
       {/* 3D Canvas */}
       <Canvas shadows>
-        <PerspectiveCamera ref={cameraRef} makeDefault position={[10, 10, 10]} fov={50} />
+        <PerspectiveCamera makeDefault position={[10, 10, 10]} fov={50} />
         
         {/* Lighting setup for studio quality */}
         <ambientLight intensity={0.6} />
